@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Success AI Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i data-lucide="layout-dashboard" class="logo-icon"></i>
+                    <span>SS Dashboard</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="dashboard">
+                    <i data-lucide="home"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-view="monitoring">
+                    <i data-lucide="message-square"></i>
+                    <span>Bot Monitoring</span>
+                </a>
+                <a href="#" class="nav-item" data-view="risk-center">
+                    <i data-lucide="alert-triangle"></i>
+                    <span>Risk Center</span>
+                </a>
+                <a href="#" class="nav-item" data-view="templates">
+                    <i data-lucide="file-text"></i>
+                    <span>Templates</span>
+                </a>
+                <a href="#" class="nav-item" data-view="broadcast">
+                    <i data-lucide="send"></i>
+                    <span>Broadcast</span>
+                </a>
+                <a href="#" class="nav-item" data-view="groups">
+                    <i data-lucide="users"></i>
+                    <span>Group Manager</span>
+                </a>
+                <a href="#" class="nav-item" data-view="analytics">
+                    <i data-lucide="pie-chart"></i>
+                    <span>Feedback</span>
+                </a>
+                <a href="#" class="nav-item" data-view="architecture">
+                    <i data-lucide="cpu"></i>
+                    <span>Architecture</span>
+                </a>
+                <a href="#" class="nav-item" data-view="knowledge-base">
+                    <i data-lucide="book-open"></i>
+                    <span>Knowledge Base</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">SC</div>
+                    <div class="user-info">
+                        <span class="user-name">Officer Name</span>
+                        <span class="user-role">Student Success</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1 id="view-title">Executive Dashboard</h1>
+                <div class="top-bar-actions">
+                    <span id="current-date">Saturday, June 6, 2026</span>
+                    <button class="btn btn-icon"><i data-lucide="bell"></i></button>
+                </div>
+            </header>
+
+            <section id="view-container" class="view-content">
+                </section>
+        </main>
+    </div>
+
+    <div id="modal-absence-detail" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3>Detail Absensi Mahasiswa</h3>
+                <button class="btn btn-icon" onclick="closeAbsenceModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">
+                    <h4 id="detail-student-name" style="margin: 0; color: #111827; font-size: 1.1rem;">Nama Mahasiswa</h4>
+                    <p id="detail-student-nim" style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.875rem;">NIM: -</p>
+                </div>
+
+                <div>
+                    <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 12px; font-weight: 500;">Rincian Alfa Per Mata Kuliah:</p>
+                    <ul id="absence-list-container" style="list-style: none; padding: 0; margin: 0;">
+                        <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #e5e7eb;">
+                            <span style="font-weight: 500; color: #111827;">Consumer Behaviour</span>
+                            <span style="background: #f3f4f6; color: #111827; padding: 4px 10px; border-radius: 6px; font-size: 0.875rem; font-weight: 600;">2 Alfa</span>
+                        </li>
+                        <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0;">
+                            <span style="font-weight: 500; color: #111827;">Business & Economics Mathematic</span>
+                            <span style="background: #f3f4f6; color: #111827; padding: 4px 10px; border-radius: 6px; font-size: 0.875rem; font-weight: 600;">2 Alfa</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeAbsenceModal()">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-template" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Tambah Template Baru</h3>
+                <button class="btn btn-icon" onclick="closeModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nama Template</label>
+                    <input type="text" id="tpl-name" class="form-control" placeholder="Contoh: Reminder UTS">
+                </div>
+                <div class="form-group">
+                    <label>Isi Pesan</label>
+                    <textarea id="tpl-content" class="form-control" placeholder="Tulis isi template di sini..."></textarea>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Gunakan {{name}}, {{nim}}, {{semester}} untuk personalisasi.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">Batal</button>
+                <button class="btn btn-primary" id="btn-save-template">Simpan Template</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-group" class="modal-overlay">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <h3 id="modal-group-title">Buat Grup Baru</h3>
+                <button class="btn btn-icon" onclick="closeGroupModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="group-edit-id">
+                <div class="form-group">
+                    <label>Nama Grup <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="group-name" class="form-control" placeholder="Contoh: Kelas Bahasa Inggris Bisnis">
+                </div>
+                <div class="form-group">
+                    <label>Deskripsi <span style="color:var(--text-muted); font-weight:400;">(opsional)</span></label>
+                    <input type="text" id="group-desc" class="form-control" placeholder="Keterangan singkat tentang grup ini">
+                </div>
+                <div class="form-group">
+                    <label>Tambah Anggota</label>
+                    <input type="text" id="group-member-search" class="form-control" placeholder="Cari nama atau NIM mahasiswa...">
+                    <div id="group-search-results" style="margin-top: 4px;"></div>
+                </div>
+                <div class="form-group">
+                    <label>Anggota Terpilih (<span id="member-count">0</span>)</label>
+                    <div id="group-member-tags" class="member-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeGroupModal()">Batal</button>
+                <button class="btn btn-primary" id="btn-save-group">Simpan Grup</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fungsi sederhana untuk menutup modal absensi (bisa digabung ke app.js nantinya)
+        function closeAbsenceModal() {
+            document.getElementById('modal-absence-detail').classList.remove('active');
+            // Jika menggunakan display: none
+            // document.getElementById('modal-absence-detail').style.display = 'none';
+        }
+    </script>
+    <script src="js/data.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
