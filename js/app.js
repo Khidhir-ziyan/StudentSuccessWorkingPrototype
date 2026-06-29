@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
         templates: renderTemplates,
         broadcast: renderBroadcast,
         analytics: renderAnalytics,
-        architecture: renderArchitecture,
         groups: renderGroups,
         'knowledge-base': renderKnowledgeBase
     };
@@ -56,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Global Functions for Absence Modal
     window.closeAbsenceModal = () => {
         const modal = document.getElementById('modal-absence-detail');
-        if(modal) modal.classList.remove('active');
+        if (modal) modal.classList.remove('active');
     };
 
     window.openAbsenceDetail = (studentId) => {
@@ -87,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let listHtml = '';
 
             // Generate rincian dummy berdasarkan total alfa
-            while(remainingAlfa > 0) {
+            while (remainingAlfa > 0) {
                 let randomSubject = mockSubjects.splice(Math.floor(Math.random() * mockSubjects.length), 1)[0] || 'Mata Kuliah Lainnya';
                 let count = Math.min(remainingAlfa, Math.floor(Math.random() * 2) + 1); // Random 1 atau 2 alfa per matkul
 
@@ -141,6 +140,59 @@ document.addEventListener('DOMContentLoaded', () => {
     window.removeGroupMember = (studentId) => {
         groupModalMembers = groupModalMembers.filter(id => id !== studentId);
         renderGroupMemberTags();
+    };
+
+    // WA Template Modal globals
+    let waSelectedStudent = null;
+
+    window.closeWATemplateModal = () => {
+        document.getElementById('modal-wa-template').classList.remove('active');
+        waSelectedStudent = null;
+    };
+
+    window.openWATemplateModal = (studentId) => {
+        const student = mockData.students.find(s => s.id === studentId);
+        if (!student) return;
+        waSelectedStudent = student;
+
+        document.getElementById('wa-student-id').value = studentId;
+        document.getElementById('wa-student-info').textContent = `${student.name} (${student.nim})`;
+        document.getElementById('wa-preview-group').style.display = 'none';
+        document.getElementById('wa-preview').textContent = '';
+        document.getElementById('btn-send-wa').disabled = true;
+
+        const select = document.getElementById('wa-template-select');
+        select.innerHTML = '<option value="">-- Pilih Template --</option>' +
+            mockData.templates.map(tpl => `<option value="${tpl.id}">${tpl.name}</option>`).join('');
+        select.value = '';
+
+        select.onchange = () => {
+            const tpl = mockData.templates.find(t => t.id === select.value);
+            if (!tpl) {
+                document.getElementById('wa-preview-group').style.display = 'none';
+                document.getElementById('btn-send-wa').disabled = true;
+                return;
+            }
+            let msg = tpl.content
+                .replace(/\{\{name\}\}/g, student.name)
+                .replace(/\{\{nim\}\}/g, student.nim)
+                .replace(/\{\{semester\}\}/g, student.semester);
+            document.getElementById('wa-preview').textContent = msg;
+            document.getElementById('wa-preview-group').style.display = 'block';
+            document.getElementById('btn-send-wa').disabled = false;
+        };
+
+        document.getElementById('modal-wa-template').classList.add('active');
+        lucide.createIcons();
+    };
+
+    window.sendWAWithTemplate = () => {
+        if (!waSelectedStudent) return;
+        const preview = document.getElementById('wa-preview').textContent;
+        if (!preview) return;
+        const encoded = encodeURIComponent(preview);
+        window.open(`https://wa.me/${waSelectedStudent.phone}?text=${encoded}`, '_blank');
+        closeWATemplateModal();
     };
 
     // --- View Renderers ---
@@ -586,8 +638,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th>Mode</th>
                                 <th>Kategori</th>
                                 <th>Alfa</th>
-                                <th>Score</th>
                                 <th>Level</th>
+                                <th>Detail</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -618,7 +670,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (filteredStudents.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">Tidak ada data yang cocok dengan filter.</td></tr>`;
             } else {
-                tbody.innerHTML = filteredStudents.map(s => `
+                const getRiskLevel = (alfaCount) => {
+                    if (alfaCount >= 6) return { level: 'Critical', class: 'badge-critical' };
+                    if (alfaCount >= 4) return { level: 'High', class: 'badge-high' };
+                    if (alfaCount >= 2) return { level: 'Medium', class: 'badge-medium' };
+                    return { level: 'Low', class: 'badge-low' };
+                };
+
+                tbody.innerHTML = filteredStudents.map(s => {
+                    const riskData = getRiskLevel(s.absences);
+                    return `
                     <tr>
                         <td>
                             <div style="font-weight: 600;">${s.name}</div>
@@ -628,20 +689,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${s.semester}</td>
                         <td><span style="font-size: 0.8125rem;">${s.learningMode}</span></td>
                         <td><span style="font-size: 0.8125rem;">${s.classType}</span></td>
-                        <td style="cursor: pointer;" onclick="openAbsenceDetail('${s.id}')">
-                            <span style="border-bottom: 1px dashed var(--primary); color: var(--primary); font-weight: 600;">
-                                ${s.absences}
-                            </span>
-                        </td>
-                        <td>${s.riskScore}</td>
-                        <td><span class="badge badge-${s.riskLevel.toLowerCase()}">${s.riskLevel}</span></td>
+                        <td>${s.absences}</td>
+                        <td><span class="badge ${riskData.class}">${riskData.level}</span></td>
                         <td>
-                            <a href="https://wa.me/${s.phone}" target="_blank" class="btn btn-outline btn-sm">
+                            <button class="btn btn-outline btn-sm" onclick="openAbsenceDetail('${s.id}')">
+                                <i data-lucide="info" style="width: 14px; height: 14px;"></i> Detail
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="openWATemplateModal('${s.id}')">
                                 <i data-lucide="message-circle" style="width: 14px; height: 14px;"></i> WA
-                            </a>
+                            </button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             }
             lucide.createIcons();
         };
@@ -770,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <div class="card" style="margin-top: 24px;">
+                <div class="card" id="broadcast-drafts-section" style="margin-top: 24px;">
                     <h3 style="margin-bottom: 16px;">Draft Tersimpan</h3>
                     <div id="broadcast-drafts-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
                         <!-- Draft items will be rendered here -->
@@ -819,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <label>Semester</label>
                             <select id="bc-semester" class="form-control">
                                 <option value="all">Semua Semester</option>
-                                ${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}">${n}</option>`).join('')}
+                                ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `<option value="${n}">${n}</option>`).join('')}
                             </select>
                         </div>
                     </div>
@@ -864,15 +926,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let recipients = [];
             if (isFilter) {
-                const faculty   = document.getElementById('bc-faculty').value;
-                const mode      = document.getElementById('bc-mode').value;
-                const category  = document.getElementById('bc-category').value;
-                const semester  = document.getElementById('bc-semester').value;
+                const faculty = document.getElementById('bc-faculty').value;
+                const mode = document.getElementById('bc-mode').value;
+                const category = document.getElementById('bc-category').value;
+                const semester = document.getElementById('bc-semester').value;
                 recipients = mockData.students.filter(s => {
-                    return (faculty   === 'all' || s.faculty      === faculty)
-                        && (mode      === 'all' || s.learningMode === mode)
-                        && (category  === 'all' || s.classType    === category)
-                        && (semester  === 'all' || s.semester.toString() === semester);
+                    return (faculty === 'all' || s.faculty === faculty)
+                        && (mode === 'all' || s.learningMode === mode)
+                        && (category === 'all' || s.classType === category)
+                        && (semester === 'all' || s.semester.toString() === semester);
                 });
             } else {
                 const checked = [...document.querySelectorAll('.bc-group-check:checked')].map(el => el.value);
@@ -887,7 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('broadcast-recipient-count').textContent = `${recipients.length} Mahasiswa`;
         };
 
-        ['bc-faculty','bc-mode','bc-category','bc-semester'].forEach(id => {
+        ['bc-faculty', 'bc-mode', 'bc-category', 'bc-semester'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('change', updateCount);
         });
@@ -901,13 +963,75 @@ document.addEventListener('DOMContentLoaded', () => {
             if (count === '0 Mahasiswa') { alert('Tidak ada penerima. Periksa filter atau pilih grup terlebih dahulu.'); return; }
             alert(`Broadcast "${title}" berhasil dikirim ke ${count}!`);
         };
+
+        // Save Draft
+        document.getElementById('btn-save-draft').onclick = () => {
+            const title = document.getElementById('broadcast-title').value.trim();
+            const content = document.getElementById('broadcast-message').value.trim();
+            if (!title && !content) { alert('Isi judul atau pesan terlebih dahulu.'); return; }
+
+            const newDraft = {
+                id: `DRT${Date.now()}`,
+                title: title || '(tanpa judul)',
+                content: content || '(kosong)',
+                createdAt: new Date().toISOString()
+            };
+            mockData.broadcastDrafts.push(newDraft);
+
+            document.getElementById('broadcast-title').value = '';
+            document.getElementById('broadcast-message').value = '';
+
+            renderBroadcastDrafts();
+            document.getElementById('broadcast-drafts-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        renderBroadcastDrafts();
     }
+
+    function renderBroadcastDrafts() {
+        const container = document.getElementById('broadcast-drafts-list');
+        if (!container) return;
+
+        const drafts = mockData.broadcastDrafts;
+        if (drafts.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 20px;">Belum ada draft tersimpan.</p>';
+            return;
+        }
+
+        container.innerHTML = drafts.map(d => `
+            <div class="card" style="padding: 16px; cursor: pointer;" onclick="loadDraft('${d.id}')">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <strong style="font-size: 0.875rem;">${d.title}</strong>
+                    <button class="btn btn-icon btn-sm" onclick="event.stopPropagation(); deleteDraft('${d.id}')" style="color:var(--danger); flex-shrink:0;">
+                        <i data-lucide="trash-2" style="width:14px;"></i>
+                    </button>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${d.content}</p>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">${new Date(d.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    window.loadDraft = (draftId) => {
+        const d = mockData.broadcastDrafts.find(d => d.id === draftId);
+        if (!d) return;
+        document.getElementById('broadcast-title').value = d.title === '(tanpa judul)' ? '' : d.title;
+        document.getElementById('broadcast-message').value = d.content === '(kosong)' ? '' : d.content;
+        document.getElementById('broadcast-drafts-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    window.deleteDraft = (draftId) => {
+        if (!confirm('Hapus draft ini?')) return;
+        mockData.broadcastDrafts = mockData.broadcastDrafts.filter(d => d.id !== draftId);
+        renderBroadcastDrafts();
+    };
 
     window.switchBroadcastTab = (tab) => {
         document.getElementById('broadcast-tab-filter').style.display = tab === 'filter' ? 'block' : 'none';
-        document.getElementById('broadcast-tab-group').style.display  = tab === 'group'  ? 'block' : 'none';
+        document.getElementById('broadcast-tab-group').style.display = tab === 'group' ? 'block' : 'none';
         document.getElementById('tab-filter').classList.toggle('active', tab === 'filter');
-        document.getElementById('tab-group').classList.toggle('active',  tab === 'group');
+        document.getElementById('tab-group').classList.toggle('active', tab === 'group');
 
         const countEl = document.getElementById('broadcast-recipient-count');
         if (tab === 'filter') {
@@ -1042,44 +1166,6 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     }
 
-    function renderArchitecture() {
-        viewContainer.innerHTML = `
-            <div class="card">
-                <h3>System Architecture View</h3>
-                <p style="margin-top: 8px; color: var(--text-muted);">Memahami alur data dan integrasi sistem.</p>
-                <div style="margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
-                    <div style="padding: 16px 24px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600;">Student</div>
-                    <i data-lucide="arrow-down" style="color: var(--text-muted);"></i>
-                    <div style="padding: 16px 24px; background: #dcfce7; border: 1px solid var(--success); border-radius: 8px; font-weight: 600;">WhatsApp Platform</div>
-                    <i data-lucide="arrow-down" style="color: var(--text-muted);"></i>
-                    <div style="display: flex; gap: 40px; align-items: center; flex-wrap: wrap; justify-content: center;">
-                        <div style="padding: 24px; background: #eef2ff; border: 2px solid var(--primary); border-radius: 12px; text-align: center;">
-                            <div style="font-weight: 700; margin-bottom: 8px;">AI Bot Engine</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">NLP & Knowledge Base</div>
-                        </div>
-                        <i data-lucide="arrow-left-right" style="color: var(--text-muted);"></i>
-                        <div style="padding: 24px; background: #fff3e0; border: 2px solid var(--warning); border-radius: 12px; text-align: center;">
-                            <div style="font-weight: 700; margin-bottom: 8px;">RAG Pipeline</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">Document Store → Embedding → Retrieval</div>
-                        </div>
-                        <i data-lucide="arrow-left-right" style="color: var(--text-muted);"></i>
-                        <div style="padding: 24px; background: #fff7ed; border: 2px solid #fb923c; border-radius: 12px; text-align: center;">
-                            <div style="font-weight: 700; margin-bottom: 8px;">SIAKAD API</div>
-                            <div style="font-size: 0.75rem; color: var(--text-muted);">Academic Data</div>
-                        </div>
-                    </div>
-                    <i data-lucide="arrow-down" style="color: var(--text-muted);"></i>
-                    <div style="padding: 16px 24px; background: #fef2f2; border: 1px solid var(--danger); border-radius: 8px; font-weight: 600;">Handover Queue</div>
-                    <i data-lucide="arrow-down" style="color: var(--text-muted);"></i>
-                    <div style="padding: 24px; background: var(--bg-sidebar); color: white; border-radius: 12px; text-align: center;">
-                        <div style="font-weight: 700; margin-bottom: 8px;">SS Dashboard (You)</div>
-                        <div style="font-size: 0.75rem; color: var(--sidebar-text);">Monitoring · Intervention · Broadcast · Knowledge Base</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        lucide.createIcons();
-    }
 
     // ===== HELPER: Group Member Tags =====
     function renderGroupMemberTags() {
@@ -1121,14 +1207,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             results.innerHTML = `<div class="search-results-dropdown">
                 ${matched.map(s => {
-                    const added = groupModalMembers.includes(s.id);
-                    return `<div class="search-result-item ${added ? 'already-added' : ''}"
+                const added = groupModalMembers.includes(s.id);
+                return `<div class="search-result-item ${added ? 'already-added' : ''}"
                         onclick="${added ? '' : `addGroupMember('${s.id}')`}"
                         style="${added ? '' : 'cursor:pointer;'}">
                         <strong>${s.name}</strong> <span style="color:var(--text-muted);">${s.nim} · ${s.major}</span>
                         ${added ? '<span style="float:right;color:var(--success);font-size:0.75rem;">✓ Sudah ditambahkan</span>' : ''}
                     </div>`;
-                }).join('')}
+            }).join('')}
             </div>`;
         });
     }
@@ -1302,8 +1388,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusHtml = doc.status === 'active'
                 ? `<span><span class="status-dot status-dot-active"></span>Aktif</span>`
                 : doc.status === 'processing'
-                ? `<span><span class="status-dot status-dot-processing"></span>Diproses...</span>`
-                : `<span><span class="status-dot status-dot-error"></span>Error</span>`;
+                    ? `<span><span class="status-dot status-dot-processing"></span>Diproses...</span>`
+                    : `<span><span class="status-dot status-dot-error"></span>Error</span>`;
 
             return `
                 <tr>
