@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -54,6 +55,10 @@
                 <a href="#" class="nav-item" data-view="knowledge-base">
                     <i data-lucide="book-open"></i>
                     <span>Knowledge Base</span>
+                </a>
+                <a href="#" class="nav-item" data-view="input-data">
+                    <i data-lucide="user-plus"></i>
+                    <span>Data Mahasiswa</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
@@ -194,6 +199,60 @@
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="closeGroupModal()">Batal</button>
                 <button class="btn btn-primary" id="btn-save-group">Simpan Grup</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit-student" class="modal-overlay">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h3>Edit Data Mahasiswa</h3>
+                <button class="btn btn-icon" onclick="closeEditStudentModal()"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-student-id">
+                <div class="form-group">
+                    <label>Nama Lengkap <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-name" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>NIM <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-nim" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Angkatan <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-angkatan" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>No. Telepon <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Tipe Kelas <span style="color:var(--danger)">*</span></label>
+                    <select id="edit-class-type" class="form-control">
+                        <option value="Reguler">Reguler</option>
+                        <option value="Profesional">Profesional</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mode Kelas <span style="color:var(--danger)">*</span></label>
+                    <select id="edit-learning-mode" class="form-control">
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="Online">Online</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fakultas <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="edit-faculty" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Semester <span style="color:var(--danger)">*</span></label>
+                    <input type="number" id="edit-semester" class="form-control" min="1" max="14">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeEditStudentModal()">Batal</button>
+                <button class="btn btn-primary" id="btn-save-edit-student"><i data-lucide="save" style="width: 16px;"></i> Simpan Perubahan</button>
             </div>
         </div>
     </div>

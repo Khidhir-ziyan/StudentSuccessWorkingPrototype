@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
         broadcast: renderBroadcast,
         analytics: renderAnalytics,
         groups: renderGroups,
-        'knowledge-base': renderKnowledgeBase
+        'knowledge-base': renderKnowledgeBase,
+        'input-data': renderInputData
     };
 
     navItems.forEach(item => {
@@ -194,6 +195,33 @@ document.addEventListener('DOMContentLoaded', () => {
         window.open(`https://wa.me/${waSelectedStudent.phone}?text=${encoded}`, '_blank');
         closeWATemplateModal();
     };
+
+    // --- Simulated Integration Layer (Superadmin) ---
+    async function simulatePOST(endpoint, payload) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                if (endpoint === '/api/students') {
+                    const newStudent = {
+                        id: `ST${String(mockData.students.length + 1).padStart(3, '0')}`,
+                        nim: payload.nim,
+                        name: payload.name,
+                        angkatan: payload.angkatan || '-',
+                        faculty: payload.faculty,
+                        major: '-',
+                        semester: payload.semester || 1,
+                        classType: payload.classType || 'Reguler',
+                        learningMode: payload.learningMode || 'Offline',
+                        phone: payload.phone,
+                        absences: 0,
+                        riskScore: 0,
+                        riskLevel: 'Low'
+                    };
+                    mockData.students.push(newStudent);
+                }
+                resolve({ ok: true, status: 201 });
+            }, 800);
+        });
+    }
 
     // --- View Renderers ---
 
@@ -1488,5 +1516,559 @@ document.addEventListener('DOMContentLoaded', () => {
         if (countEl) countEl.textContent = mockData.knowledgeBaseDocs.length;
         lucide.createIcons();
     };
+
+    // --- Student Edit/Delete Globals ---
+    window.openEditStudentModal = (studentId) => {
+        const student = mockData.students.find(s => s.id === studentId);
+        if (!student) return;
+        document.getElementById('edit-student-id').value = student.id;
+        document.getElementById('edit-name').value = student.name;
+        document.getElementById('edit-nim').value = student.nim;
+        document.getElementById('edit-angkatan').value = student.angkatan || '';
+        document.getElementById('edit-phone').value = student.phone;
+        document.getElementById('edit-class-type').value = student.classType;
+        document.getElementById('edit-learning-mode').value = student.learningMode;
+        document.getElementById('edit-faculty').value = student.faculty;
+        document.getElementById('edit-semester').value = student.semester;
+        document.getElementById('modal-edit-student').classList.add('active');
+        lucide.createIcons();
+    };
+
+    window.closeEditStudentModal = () => {
+        document.getElementById('modal-edit-student').classList.remove('active');
+    };
+
+    window.deleteStudent = (studentId) => {
+        if (!confirm('Hapus data mahasiswa ini?')) return;
+        mockData.students = mockData.students.filter(s => s.id !== studentId);
+        inputFilteredStudents = null;
+        refreshInputTable();
+    };
+
+    function renderInputData() {
+        viewContainer.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 420px; gap: 24px; align-items: start;">
+                <div>
+                    <div id="excel-preview-section" style="display:none;" class="card" style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 1rem;">Preview Import (<span id="excel-preview-count">0</span> baris)</h3>
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn btn-outline btn-sm" id="btn-excel-back">Batal</button>
+                                <button class="btn btn-primary btn-sm" id="btn-excel-import"><i data-lucide="upload" style="width: 14px;"></i> Import</button>
+                            </div>
+                        </div>
+                        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nama</th><th>NIM</th><th>Angkatan</th><th>Telepon</th>
+                                        <th>Tipe</th><th>Mode</th><th>Fakultas</th><th>Sem</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="excel-preview-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap: 10px; align-items: flex-end; margin-bottom: 16px;">
+                            <div class="form-group" style="margin-bottom: 0; grid-column: span 2;">
+                                <label style="font-size: 0.75rem;">Search (Nama / NIM)</label>
+                                <input type="text" id="filter-input-search" class="form-control" placeholder="Cari..." style="font-size: 0.8125rem; padding: 6px 10px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">Angkatan</label>
+                                <select id="filter-input-angkatan" class="form-control" style="font-size: 0.8125rem; padding: 6px 10px;">
+                                    <option value="all">Semua</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">Tipe Kelas</label>
+                                <select id="filter-input-class-type" class="form-control" style="font-size: 0.8125rem; padding: 6px 10px;">
+                                    <option value="all">Semua</option>
+                                    <option>Reguler</option>
+                                    <option>Profesional</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">Mode Kelas</label>
+                                <select id="filter-input-learning-mode" class="form-control" style="font-size: 0.8125rem; padding: 6px 10px;">
+                                    <option value="all">Semua</option>
+                                    <option>Hybrid</option>
+                                    <option>Online</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">Fakultas</label>
+                                <select id="filter-input-faculty" class="form-control" style="font-size: 0.8125rem; padding: 6px 10px;">
+                                    <option value="all">Semua</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">Semester</label>
+                                <select id="filter-input-semester" class="form-control" style="font-size: 0.8125rem; padding: 6px 10px;">
+                                    <option value="all">Semua</option>
+                                    ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}">${n}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.75rem;">&nbsp;</label>
+                                <button id="btn-apply-input-filter" class="btn btn-primary btn-sm" style="width: 100%;">Filter</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+                            <h3 style="font-size: 1rem;">Data Mahasiswa (<span id="student-count">${mockData.students.length}</span>)</h3>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nama</th><th>NIM</th><th>Angkatan</th><th>Telepon</th>
+                                        <th>Tipe</th><th>Mode</th><th>Fakultas</th><th>Sem</th><th style="width: 80px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="input-data-table-body">
+                                    ${renderInputDataRows(mockData.students, 1)}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="pagination-info" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-muted);">
+                            <span>Menampilkan <span id="pagination-showing">1-10</span> dari <span id="pagination-total">${mockData.students.length}</span> data</span>
+                            <div id="pagination-controls" style="display: flex; gap: 4px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card" style="margin-bottom: 24px;">
+                        <h3 style="margin-bottom: 16px;">Upload Excel</h3>
+                        <div class="upload-zone" id="excel-upload-zone" style="padding: 24px;">
+                            <i data-lucide="file-spreadsheet" style="width: 32px; height: 32px; color: var(--text-muted); margin-bottom: 8px;"></i>
+                            <p style="font-weight: 500; margin-bottom: 4px; font-size: 0.875rem;">Klik atau seret file Excel</p>
+                            <p style="font-size: 0.7rem; color: var(--text-muted);">.xlsx, .xls, .csv — Header otomatis terdeteksi</p>
+                            <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display:none;">
+                        </div>
+                        <div id="excel-upload-preview" style="display:none; margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="min-width: 0;">
+                                    <span id="excel-filename" style="font-weight: 600; font-size: 0.8125rem;"></span>
+                                    <span id="excel-filesize" style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px;"></span>
+                                </div>
+                                <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                                    <button class="btn btn-outline btn-sm" id="btn-excel-cancel">Batal</button>
+                                    <button class="btn btn-primary btn-sm" id="btn-excel-preview">Preview</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="excel-mapping-info" style="display:none; margin-top: 12px; padding: 10px; background: #f0fdf4; border-radius: 8px; font-size: 0.75rem;">
+                            <p style="font-weight: 600; margin-bottom: 4px; color: var(--success);">Kolom Terdeteksi:</p>
+                            <div id="excel-mapping-detail"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">Input Manual</h3>
+                        <form id="form-input-data">
+                            <div class="form-group">
+                                <label>Nama Lengkap <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="input-name" class="form-control" placeholder="Nama lengkap">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group">
+                                    <label>NIM <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" id="input-nim" class="form-control" placeholder="NIM">
+                                </div>
+                                <div class="form-group">
+                                    <label>Angkatan <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" id="input-angkatan" class="form-control" placeholder="Tahun">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>No. Telepon <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="input-phone" class="form-control" placeholder="628xxxxxxxxxx">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group">
+                                    <label>Tipe Kelas <span style="color:var(--danger)">*</span></label>
+                                    <select id="input-class-type" class="form-control">
+                                        <option value="">-- Pilih --</option>
+                                        <option value="Reguler">Reguler</option>
+                                        <option value="Profesional">Profesional</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Mode Kelas <span style="color:var(--danger)">*</span></label>
+                                    <select id="input-learning-mode" class="form-control">
+                                        <option value="">-- Pilih --</option>
+                                        <option value="Hybrid">Hybrid</option>
+                                        <option value="Online">Online</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group">
+                                    <label>Fakultas <span style="color:var(--danger)">*</span></label>
+                                    <input type="text" id="input-faculty" class="form-control" placeholder="Fakultas">
+                                </div>
+                                <div class="form-group">
+                                    <label>Semester <span style="color:var(--danger)">*</span></label>
+                                    <input type="number" id="input-semester" class="form-control" placeholder="Semester" min="1" max="14">
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+                                <button type="reset" class="btn btn-outline btn-sm">Reset</button>
+                                <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-data">
+                                    <i data-lucide="send" style="width: 14px;"></i> Simpan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        lucide.createIcons();
+        inputFilteredStudents = null;
+        inputCurrentPage = 1;
+        renderPagination(mockData.students.length, 1);
+
+        // --- Excel Column Auto-Detect ---
+        const fieldAliases = {
+            name: ['nama', 'name', 'nama_lengkap', 'fullname', 'nama_mahasiswa'],
+            nim: ['nim', 'npm', 'id_student', 'no_mahasiswa', 'nomor_induk'],
+            angkatan: ['angkatan', 'year', 'batch', 'tahun_masuk'],
+            phone: ['telepon', 'telp', 'phone', 'no_hp', 'no_telp', 'nomor_telepon', 'whatsapp', 'wa'],
+            classType: ['tipe_kelas', 'class_type', 'kategori', 'jenis_kelas'],
+            learningMode: ['mode_kelas', 'learning_mode', 'mode', 'tipe_pembelajaran'],
+            faculty: ['fakultas', 'faculty', 'fak'],
+            semester: ['semester', 'sem']
+        };
+
+        function detectColumns(headers) {
+            const mapping = {};
+            const usedFields = new Set();
+            headers.forEach((header, idx) => {
+                const normalized = header.toLowerCase().trim().replace(/[\s_-]+/g, '_');
+                for (const [field, aliases] of Object.entries(fieldAliases)) {
+                    if (!usedFields.has(field) && aliases.includes(normalized)) {
+                        mapping[field] = idx;
+                        usedFields.add(field);
+                        break;
+                    }
+                }
+            });
+            return mapping;
+        }
+
+        function parseExcelRow(row, mapping) {
+            const get = (field) => mapping[field] !== undefined ? (row[mapping[field]] || '').toString().trim() : '';
+            return {
+                name: get('name'), nim: get('nim'), angkatan: get('angkatan'),
+                phone: get('phone'), classType: get('classType'),
+                learningMode: get('learningMode'), faculty: get('faculty'), semester: get('semester')
+            };
+        }
+
+        // --- Upload Zone ---
+        let selectedExcelFile = null;
+        let parsedExcelData = [];
+        let detectedMapping = {};
+
+        const zone = document.getElementById('excel-upload-zone');
+        const fileInput = document.getElementById('excel-file-input');
+        const preview = document.getElementById('excel-upload-preview');
+
+        zone.addEventListener('click', (e) => { if (e.target.tagName !== 'BUTTON') fileInput.click(); });
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault(); zone.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]) handleExcelFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleExcelFile(fileInput.files[0]); });
+
+        function handleExcelFile(file) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+                alert('Format file tidak didukung. Gunakan .xlsx, .xls, atau .csv');
+                return;
+            }
+            selectedExcelFile = file;
+            document.getElementById('excel-filename').textContent = file.name;
+            document.getElementById('excel-filesize').textContent = `${(file.size / 1024).toFixed(1)} KB`;
+            preview.style.display = 'block';
+            document.getElementById('excel-mapping-info').style.display = 'none';
+            document.getElementById('excel-preview-section').style.display = 'none';
+        }
+
+        document.getElementById('btn-excel-cancel').addEventListener('click', () => {
+            selectedExcelFile = null; fileInput.value = '';
+            preview.style.display = 'none';
+            document.getElementById('excel-mapping-info').style.display = 'none';
+            document.getElementById('excel-preview-section').style.display = 'none';
+        });
+
+        // --- Preview ---
+        document.getElementById('btn-excel-preview').addEventListener('click', () => {
+            if (!selectedExcelFile) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                if (rows.length < 2) { alert('File Excel kosong atau hanya memiliki header.'); return; }
+
+                const headers = rows[0].map(h => h.toString());
+                detectedMapping = detectColumns(headers);
+
+                if (Object.keys(detectedMapping).length === 0) {
+                    alert('Tidak ada kolom yang cocok. Pastikan header: Nama, NIM, Angkatan, Telepon, Tipe Kelas, Mode Kelas, Fakultas, Semester.');
+                    return;
+                }
+
+                const mappingLabels = {
+                    name: 'Nama', nim: 'NIM', angkatan: 'Angkatan', phone: 'Telepon',
+                    classType: 'Tipe Kelas', learningMode: 'Mode Kelas', faculty: 'Fakultas', semester: 'Semester'
+                };
+                const mappedFields = Object.keys(detectedMapping);
+                document.getElementById('excel-mapping-detail').innerHTML = mappedFields.map(f => {
+                    const colLetter = String.fromCharCode(65 + detectedMapping[f]);
+                    return `<span style="display:inline-block; margin-right: 10px; margin-bottom: 2px;"><strong>${mappingLabels[f]}</strong> ← ${colLetter} ("${headers[detectedMapping[f]]}")</span>`;
+                }).join('');
+
+                const unmapped = Object.keys(fieldAliases).filter(f => !detectedMapping[f]);
+                if (unmapped.length > 0) {
+                    document.getElementById('excel-mapping-detail').innerHTML += `<p style="color: var(--warning); margin-top: 6px; margin-bottom: 0;">Tidak terdeteksi: ${unmapped.map(f => mappingLabels[f]).join(', ')}</p>`;
+                }
+                document.getElementById('excel-mapping-info').style.display = 'block';
+
+                parsedExcelData = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.every(cell => !cell && cell !== 0)) continue;
+                    const parsed = parseExcelRow(row, detectedMapping);
+                    if (parsed.name || parsed.nim) parsedExcelData.push(parsed);
+                }
+
+                document.getElementById('excel-preview-count').textContent = parsedExcelData.length;
+                document.getElementById('excel-preview-body').innerHTML = parsedExcelData.map(s => `
+                    <tr>
+                        <td>${s.name || '<span style="color:var(--danger)">-</span>'}</td>
+                        <td>${s.nim || '<span style="color:var(--danger)">-</span>'}</td>
+                        <td>${s.angkatan || '-'}</td><td>${s.phone || '-'}</td>
+                        <td>${s.classType || '-'}</td><td>${s.learningMode || '-'}</td>
+                        <td>${s.faculty || '-'}</td><td>${s.semester || '-'}</td>
+                    </tr>
+                `).join('');
+                document.getElementById('excel-preview-section').style.display = 'block';
+                lucide.createIcons();
+            };
+            reader.readAsArrayBuffer(selectedExcelFile);
+        });
+
+        // --- Import ---
+        document.getElementById('btn-excel-back').addEventListener('click', () => {
+            document.getElementById('excel-preview-section').style.display = 'none';
+        });
+
+        document.getElementById('btn-excel-import').addEventListener('click', async () => {
+            if (parsedExcelData.length === 0) return;
+            const btn = document.getElementById('btn-excel-import');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" style="width: 14px;"></i> Importing...';
+            lucide.createIcons();
+
+            let imported = 0;
+            for (const row of parsedExcelData) {
+                if (!row.name && !row.nim) continue;
+                await simulatePOST('/api/students', {
+                    name: row.name || '-', nim: row.nim || '-', angkatan: row.angkatan || '-',
+                    phone: row.phone || '-', classType: row.classType || 'Reguler',
+                    learningMode: row.learningMode || 'Online', faculty: row.faculty || '-',
+                    semester: parseInt(row.semester) || 1
+                });
+                imported++;
+            }
+
+            inputFilteredStudents = null;
+            refreshInputTable();
+
+            selectedExcelFile = null; fileInput.value = '';
+            preview.style.display = 'none';
+            document.getElementById('excel-mapping-info').style.display = 'none';
+            document.getElementById('excel-preview-section').style.display = 'none';
+            parsedExcelData = [];
+
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="upload" style="width: 14px;"></i> Import';
+            lucide.createIcons();
+            alert(`${imported} data mahasiswa berhasil diimport.`);
+        });
+
+        // --- Filters ---
+        const angkatanSet = [...new Set(mockData.students.map(s => s.angkatan).filter(Boolean))];
+        const facultySet = [...new Set(mockData.students.map(s => s.faculty).filter(Boolean))];
+        const angkatanSelect = document.getElementById('filter-input-angkatan');
+        const facultySelect = document.getElementById('filter-input-faculty');
+        angkatanSet.sort().forEach(a => { angkatanSelect.innerHTML += `<option value="${a}">${a}</option>`; });
+        facultySet.sort().forEach(f => { facultySelect.innerHTML += `<option value="${f}">${f}</option>`; });
+
+        const applyInputFilter = () => {
+            const search = document.getElementById('filter-input-search').value.trim().toLowerCase();
+            const angkatan = document.getElementById('filter-input-angkatan').value;
+            const classType = document.getElementById('filter-input-class-type').value;
+            const learningMode = document.getElementById('filter-input-learning-mode').value;
+            const faculty = document.getElementById('filter-input-faculty').value;
+            const semester = document.getElementById('filter-input-semester').value;
+
+            inputFilteredStudents = mockData.students.filter(s => {
+                const matchSearch = !search || s.name.toLowerCase().includes(search) || s.nim.toLowerCase().includes(search);
+                const matchAngkatan = angkatan === 'all' || s.angkatan === angkatan;
+                const matchClassType = classType === 'all' || s.classType === classType;
+                const matchLearningMode = learningMode === 'all' || s.learningMode === learningMode;
+                const matchFaculty = faculty === 'all' || s.faculty === faculty;
+                const matchSemester = semester === 'all' || s.semester.toString() === semester;
+                return matchSearch && matchAngkatan && matchClassType && matchLearningMode && matchFaculty && matchSemester;
+            });
+
+            inputCurrentPage = 1;
+            document.getElementById('input-data-table-body').innerHTML = renderInputDataRows(inputFilteredStudents, 1);
+            renderPagination(inputFilteredStudents.length, 1);
+            document.getElementById('student-count').textContent = inputFilteredStudents.length;
+            lucide.createIcons();
+        };
+
+        document.getElementById('btn-apply-input-filter').addEventListener('click', applyInputFilter);
+        document.getElementById('filter-input-search').addEventListener('input', applyInputFilter);
+
+        // --- Form submit ---
+        document.getElementById('form-input-data').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('input-name').value.trim();
+            const nim = document.getElementById('input-nim').value.trim();
+            const angkatan = document.getElementById('input-angkatan').value.trim();
+            const phone = document.getElementById('input-phone').value.trim();
+            const classType = document.getElementById('input-class-type').value;
+            const learningMode = document.getElementById('input-learning-mode').value;
+            const faculty = document.getElementById('input-faculty').value.trim();
+            const semester = document.getElementById('input-semester').value;
+
+            if (!name || !nim || !angkatan || !phone || !classType || !learningMode || !faculty || !semester) {
+                alert('Semua field wajib diisi.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-submit-data');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader" style="width: 14px;"></i> Menyimpan...';
+            lucide.createIcons();
+
+            const res = await simulatePOST('/api/students', { name, nim, angkatan, phone, classType, learningMode, faculty, semester: parseInt(semester) });
+
+            if (res.ok) {
+                inputFilteredStudents = null;
+                refreshInputTable();
+                e.target.reset();
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="send" style="width: 14px;"></i> Simpan';
+                lucide.createIcons();
+            }
+        });
+    }
+
+    // --- Save Edit Student ---
+    document.getElementById('btn-save-edit-student').addEventListener('click', async () => {
+        const id = document.getElementById('edit-student-id').value;
+        const student = mockData.students.find(s => s.id === id);
+        if (!student) return;
+
+        student.name = document.getElementById('edit-name').value.trim();
+        student.nim = document.getElementById('edit-nim').value.trim();
+        student.angkatan = document.getElementById('edit-angkatan').value.trim();
+        student.phone = document.getElementById('edit-phone').value.trim();
+        student.classType = document.getElementById('edit-class-type').value;
+        student.learningMode = document.getElementById('edit-learning-mode').value;
+        student.faculty = document.getElementById('edit-faculty').value.trim();
+        student.semester = parseInt(document.getElementById('edit-semester').value);
+
+        refreshInputTable();
+        closeEditStudentModal();
+    });
+
+    function renderInputDataRows(students, page = 1) {
+        const totalPages = Math.ceil(students.length / 10);
+        const startIdx = (page - 1) * 10;
+        const pageData = students.slice(startIdx, startIdx + 10);
+
+        if (pageData.length === 0) {
+            return `<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">Tidak ada data yang cocok dengan filter.</td></tr>`;
+        }
+        return pageData.map(s => `
+            <tr>
+                <td style="font-weight: 500;">${s.name}</td>
+                <td>${s.nim}</td>
+                <td>${s.angkatan || '-'}</td>
+                <td>${s.phone}</td>
+                <td><span class="badge badge-${s.classType === 'Profesional' ? 'info' : 'low'}">${s.classType}</span></td>
+                <td>${s.learningMode}</td>
+                <td>${s.faculty}</td>
+                <td>${s.semester}</td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <button class="btn btn-icon btn-sm" onclick="openEditStudentModal('${s.id}')" title="Edit">
+                            <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <button class="btn btn-icon btn-sm text-danger" onclick="deleteStudent('${s.id}')" title="Hapus">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function renderPagination(total, page) {
+        const totalPages = Math.ceil(total / 10);
+        const start = (page - 1) * 10 + 1;
+        const end = Math.min(page * 10, total);
+
+        document.getElementById('pagination-showing').textContent = total > 0 ? `${start}-${end}` : '0';
+        document.getElementById('pagination-total').textContent = total;
+
+        const controls = document.getElementById('pagination-controls');
+        if (totalPages <= 1) { controls.innerHTML = ''; return; }
+
+        let html = '';
+        html += `<button class="btn btn-outline btn-sm" onclick="goToInputPage(${page - 1})" ${page === 1 ? 'disabled' : ''} style="padding: 4px 8px; min-width: 32px;">‹</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="btn btn-sm" onclick="goToInputPage(${i})" style="padding: 4px 8px; min-width: 32px; ${i === page ? 'background: var(--primary); color: white;' : 'background: transparent; border-color: var(--border-color); color: var(--text-main);'}">${i}</button>`;
+        }
+        html += `<button class="btn btn-outline btn-sm" onclick="goToInputPage(${page + 1})" ${page === totalPages ? 'disabled' : ''} style="padding: 4px 8px; min-width: 32px;">›</button>`;
+        controls.innerHTML = html;
+    }
+
+    window.goToInputPage = (page) => {
+        const total = inputFilteredStudents ? inputFilteredStudents.length : mockData.students.length;
+        const totalPages = Math.ceil(total / 10);
+        if (page < 1 || page > totalPages) return;
+        inputCurrentPage = page;
+        const data = inputFilteredStudents || mockData.students;
+        document.getElementById('input-data-table-body').innerHTML = renderInputDataRows(data, page);
+        renderPagination(total, page);
+        lucide.createIcons();
+    };
+
+    let inputCurrentPage = 1;
+    let inputFilteredStudents = null;
+
+    function refreshInputTable() {
+        const data = inputFilteredStudents || mockData.students;
+        inputCurrentPage = 1;
+        document.getElementById('input-data-table-body').innerHTML = renderInputDataRows(data, 1);
+        renderPagination(data.length, 1);
+        document.getElementById('student-count').textContent = data.length;
+        lucide.createIcons();
+    }
 
 });
